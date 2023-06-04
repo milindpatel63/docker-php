@@ -14,7 +14,7 @@ ENV MSMTP_RELAY_SERVER_HOSTNAME="mailhog" \
     PHP_PM_START_SERVERS="2" \
     PHP_PM_MIN_SPARE_SERVERS="1" \
     PHP_PM_MAX_SPARE_SERVERS="3" \
-    SSL_MODE="full"
+    SSL_MODE="off"
 
 # install`nginx` (web server) & `msmtp` (smtp client)
 RUN apt-get update \
@@ -38,7 +38,7 @@ COPY etc/nginx/ /etc/nginx/
 
 COPY etc/php/fpm/pool.d/ /etc/php/current_version/fpm/pool.d/
 
-EXPOSE 80
-EXPOSE 443
+EXPOSE 8888
+#EXPOSE 443
 
 ENTRYPOINT ["/init"]
