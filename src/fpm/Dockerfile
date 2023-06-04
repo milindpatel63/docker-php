@@ -1,6 +1,6 @@
 ARG UPSTREAM_CHANNEL=''
 ARG PHP_VERSION='8.2'
-ARG BASE_IMAGE="serversideup/php:${UPSTREAM_CHANNEL}${PHP_VERSION}-cli"
+ARG BASE_IMAGE="milindpatel63/php:${UPSTREAM_CHANNEL}${PHP_VERSION}-cli"
 
 FROM ${BASE_IMAGE}
 
@@ -34,7 +34,7 @@ RUN apt-get update \
     && sed -i -e 's/\[www\]/\[$\{PHP_POOL_NAME\}]/g' /etc/php/${BUILD_PHP_VERSION}/fpm/pool.d/www.conf \
     \
     # install `php-fpm-healthcheck`
-    && curl -o /usr/local/bin/php-fpm-healthcheck https://raw.githubusercontent.com/renatomefi/php-fpm-healthcheck/master/php-fpm-healthcheck \
+    && curl -o /usr/local/bin/php-fpm-healthcheck https://raw.githubusercontent.com/milindpatel63/docker-php/main/php-fpm-healthcheck \
     && chmod +x /usr/local/bin/php-fpm-healthcheck \
     \
     # cleanup
@@ -47,4 +47,4 @@ COPY etc/php/fpm/pool.d/ /etc/php/current_version/fpm/pool.d/
 
 ENTRYPOINT ["/init" ]
 
-EXPOSE 9000
+EXPOSE 8889
