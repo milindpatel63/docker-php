@@ -1,5 +1,5 @@
 #!/command/with-contenv bash
-response=$(curl --location --insecure --silent http://localhost/ping)
+response=$(curl --location --insecure --silent http://localhost:8888/ping)
 
 if [[ $response == "pong" ]]; then
 	exit 0
