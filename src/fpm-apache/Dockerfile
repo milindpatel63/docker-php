@@ -1,6 +1,6 @@
 ARG UPSTREAM_CHANNEL=''
 ARG PHP_VERSION='8.2'
-ARG BASE_IMAGE="serversideup/php:${UPSTREAM_CHANNEL}${PHP_VERSION}-fpm"
+ARG BASE_IMAGE="milindpatel63/php:${UPSTREAM_CHANNEL}${PHP_VERSION}-fpm"
 
 FROM ${BASE_IMAGE}
 
@@ -72,7 +72,7 @@ COPY --chmod=755 etc/s6-overlay/ /etc/s6-overlay/
 
 COPY etc/php/fpm/pool.d/ /etc/php/current_version/fpm/pool.d/
 
-EXPOSE 80
-EXPOSE 443
+EXPOSE 8888
+#EXPOSE 443
 
 ENTRYPOINT ["/init"]
