@@ -12,10 +12,10 @@ ARG DEPENDENCY_PACKAGES_DEBIAN='zip'
 ARG DEPENDENCY_PHP_EXTENSIONS='pcntl pdo_mysql pdo_pgsql redis zip'
 ARG REPOSITORY_BUILD_VERSION='dev'
 
-LABEL org.opencontainers.image.title="serversideup/php (${PHP_VARIATION})" \
-    org.opencontainers.image.description="Supercharge your PHP experience. Based off the offical PHP images, serversideup/php includes pre-configured PHP extensions and settings for enhanced performance and security. Optimized for Laravel and WordPress." \
+LABEL org.opencontainers.image.title="milindpatel63/php (${PHP_VARIATION})" \
+    org.opencontainers.image.description="Supercharge your PHP experience. Based off the offical PHP images, milindpatel63/php includes pre-configured PHP extensions and settings for enhanced performance and security. Optimized for Laravel and WordPress." \
     org.opencontainers.image.url="https://serversideup.net/open-source/docker-php/" \
-    org.opencontainers.image.source="https://github.com/serversideup/docker-php" \
+    org.opencontainers.image.source="https://github.com/milindpatel63/docker-php" \
     org.opencontainers.image.documentation="https://serversideup.net/open-source/docker-php/docs/" \
     org.opencontainers.image.vendor="ServerSideUp" \
     org.opencontainers.image.authors="Jay Rogers (@jaydrogers)" \

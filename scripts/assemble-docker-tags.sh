@@ -21,7 +21,7 @@ DEFAULT_IMAGE_VARIATION="${DEFAULT_IMAGE_VARIATION:-"cli"}"
 PHP_VERSIONS_FILE="${PHP_VERSIONS_FILE:-"scripts/conf/php-versions.yml"}"
 
 # Convert comma-separated DOCKER_REGISTRY_REPOSITORIES string to an array
-IFS=',' read -ra DOCKER_REGISTRY_REPOSITORIES <<< "${DOCKER_REGISTRY_REPOSITORIES:-"docker.io/serversideup/php,ghcr.io/serversideup/php"}"
+IFS=',' read -ra DOCKER_REGISTRY_REPOSITORIES <<< "${DOCKER_REGISTRY_REPOSITORIES:-"docker.io/milindpatel63/php,ghcr.io/milindpatel63/php"}"
 DOCKER_TAG_PREFIX="${DOCKER_TAG_PREFIX:-""}"
 RELEASE_TYPE="${RELEASE_TYPE:-"testing"}"
 
@@ -151,7 +151,7 @@ help_menu() {
     echo
     echo "Environment Variables (Defaults):"
     echo "  DEFAULT_IMAGE_VARIATION      The default PHP image variation (default: cli)"
-    echo "  DOCKER_REGISTRY_REPOSITORIES  Names of images to tag (default: 'docker.io/serversideup/php' 'ghcr.io/serversideup/php')"
+    echo "  DOCKER_REGISTRY_REPOSITORIES  Names of images to tag (default: 'docker.io/milindpatel63/php' 'ghcr.io/milindpatel63/php')"
     echo "  PHP_VERSIONS_FILE            Path to PHP versions file (default: scripts/conf/php-versions.yml)"
 }
 
