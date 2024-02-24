@@ -12,7 +12,7 @@ jobs:
   build-production-images:
     uses: ./.github/workflows/service_docker-build-and-publish.yml
     with:
-      registry-repositories: "docker.io/milindpatel63/php,ghcr.io/milindpatel63/php"
+      registry-repositories: "docker.io/milindpatel63/php"
       tag-prefix: ''
       release-type: "latest"
     secrets: inherit
