@@ -1,12 +1,11 @@
 ARG BASE_OS_VERSION='bookworm'
 ARG PHP_VERSION='8.3'
-ARG PHP_VARIATION='fpm-nginx'
 ARG BASE_IMAGE="php:${PHP_VERSION}-fpm-${BASE_OS_VERSION}"
 
 ##########
 # S6 Build
 ##########
-FROM ${BASE_IMAGE} as s6-build
+FROM ${BASE_IMAGE} AS s6-build
 
 ARG S6_DIR='/opt/s6/'
 ARG S6_SRC_URL="https://github.com/just-containers/s6-overlay/releases/download"
@@ -20,7 +19,7 @@ RUN docker-php-serversideup-s6-install
 ####################
 # NGINX Signing Key
 ####################
-FROM php:${PHP_VERSION}-fpm as nginx-repo-config
+FROM php:${PHP_VERSION}-fpm AS nginx-repo-config
 
 ARG SIGNING_KEY_URL="https://nginx.org/keys/nginx_signing.key"
 ARG SIGNING_FINGERPRINT="573BFD6B3D8FBC641079A6ABABF5BD827BD9BF62"
@@ -54,7 +53,7 @@ RUN docker-php-serversideup-dep-install-debian "curl gnupg2 ca-certificates lsb-
 FROM ${BASE_IMAGE}
 ARG DEPENDENCY_PACKAGES_ALPINE='fcgi nginx gettext shadow'
 ARG DEPENDENCY_PACKAGES_DEBIAN='libfcgi-bin nginx gettext-base zip'
-ARG DEPENDENCY_PHP_EXTENSIONS='pcntl pdo_mysql pdo_pgsql redis zip'
+ARG DEPENDENCY_PHP_EXTENSIONS='opcache pcntl pdo_mysql pdo_pgsql redis zip'
 ARG REPOSITORY_BUILD_VERSION='dev'
 
 LABEL org.opencontainers.image.title="milindpatel63/php (${PHP_VARIATION})" \
@@ -73,8 +72,11 @@ ENV APP_BASE_DIR=/var/www/html \
     COMPOSER_MAX_PARALLEL_HTTP=24 \
     DISABLE_DEFAULT_CONFIG=false \
     LOG_OUTPUT_LEVEL=warn \
+    HEALTHCHECK_PATH="/healthcheck" \
+    NGINX_FASTCGI_BUFFERS="8 8k" \
+    NGINX_FASTCGI_BUFFER_SIZE="8k" \
     NGINX_SERVER_TOKENS=off \
-    NGINX_USER=nginx \
+    NGINX_WEBROOT=/var/www/html/public \
     PHP_DATE_TIMEZONE="UTC" \
     PHP_DISPLAY_ERRORS=Off \
     PHP_DISPLAY_STARTUP_ERRORS=Off \
@@ -86,9 +88,15 @@ ENV APP_BASE_DIR=/var/www/html \
     PHP_FPM_PM_MIN_SPARE_SERVERS="1" \
     PHP_FPM_PM_START_SERVERS="2" \
     PHP_FPM_POOL_NAME="www" \
+    PHP_FPM_PROCESS_CONTROL_TIMEOUT="10s" \
     PHP_MAX_EXECUTION_TIME="99" \
     PHP_MAX_INPUT_TIME="-1" \
     PHP_MEMORY_LIMIT="256M" \
+    PHP_OPCACHE_ENABLE="0" \
+    PHP_OPCACHE_INTERNED_STRINGS_BUFFER="8" \
+    PHP_OPCACHE_MAX_ACCELERATED_FILES="10000" \
+    PHP_OPCACHE_MEMORY_CONSUMPTION="128" \
+    PHP_OPCACHE_REVALIDATE_FREQ="2" \
     PHP_OPEN_BASEDIR="" \
     PHP_POST_MAX_SIZE="100M" \
     PHP_SESSION_COOKIE_SECURE=false \
@@ -97,12 +105,10 @@ ENV APP_BASE_DIR=/var/www/html \
     S6_CMD_WAIT_FOR_SERVICES_MAXTIME=0 \
     S6_KEEP_ENV=1 \
     S6_VERBOSITY=1 \
+    SHOW_WELCOME_MESSAGE=true \
     SSL_MODE=off \
     SSL_CERTIFICATE_FILE=/etc/ssl/private/self-signed-web.crt \
     SSL_PRIVATE_KEY_FILE=/etc/ssl/private/self-signed-web.key
-
-# Use second ENV layer for variable substitution
-ENV NGINX_WEBROOT=${APP_BASE_DIR}/public
 
 # copy our scripts
 COPY --chmod=755 src/common/ /
@@ -123,11 +129,18 @@ COPY --from=nginx-repo-config /etc/apt/preferences.d/99nginx /etc/apt/preference
 RUN docker-php-serversideup-dep-install-alpine "${DEPENDENCY_PACKAGES_ALPINE}" && \
     docker-php-serversideup-dep-install-debian "${DEPENDENCY_PACKAGES_DEBIAN}"  && \
     docker-php-serversideup-install-php-ext-installer && \
-    docker-php-serversideup-s6-init && \
+    \
+    # Ensure /var/www/ has the correct permissions
+    chown -R www-data:www-data /var/www && \
+    chmod -R 755 /var/www && \
     \
     # Make composer cache directory
     mkdir -p "${COMPOSER_HOME}" && \
     chown -R www-data:www-data "${COMPOSER_HOME}" && \
+    \
+    # Ensure /var/cache/nginx/ exists
+    mkdir -p /var/cache/nginx/ && \
+    chown -R www-data:www-data /var/cache/nginx/ && \
     \
     # Install default PHP extensions
     install-php-extensions "${DEPENDENCY_PHP_EXTENSIONS}" && \
@@ -155,8 +168,23 @@ COPY --chmod=755 src/php-fpm.d/ /
 # install composer from Composer's official Docker image
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-EXPOSE 80 443
+RUN docker-php-serversideup-set-file-permissions --owner www-data:www-data --service nginx
+
+# Fix S6 Overlay issues with Big Cloud PaaS (https://github.com/serversideup/docker-php/pull/376#issuecomment-2179262427)
+RUN chown -R www-data:www-data /run
+
+USER www-data
+
+EXPOSE 8080 8443
+
+ENTRYPOINT ["docker-php-serversideup-entrypoint"]
+
+# Set stop signal to SIGQUIT for a graceful shutdown instead of S6's preferred SIGTERM (https://github.com/just-containers/s6-overlay/issues/586)
+STOPSIGNAL SIGQUIT
 
 WORKDIR ${APP_BASE_DIR}
 
-ENTRYPOINT ["/init"]
+CMD ["/init"]
+
+HEALTHCHECK --interval=5s --timeout=3s --retries=3 \
+    CMD [ "sh", "-c", "curl --insecure --silent --location --show-error --fail http://localhost:8888/ping || exit 1" ]

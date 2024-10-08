@@ -13,8 +13,8 @@ charset utf-8;
 # Set max upload to 2048M
 client_max_body_size 2048M;
 
-# Healthchecks: Set /ping to be the healhcheck URL
-location /ping {
+# Healthchecks: Set /healthcheck to be the healthcheck URL
+location /healthcheck {
     access_log off;
     
     # set max 5 seconds for healthcheck
@@ -37,6 +37,9 @@ location ~ \.php$ {
     fastcgi_index  index.php;
     fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
     include        fastcgi_params;
+    fastcgi_buffers $NGINX_FASTCGI_BUFFERS; 
+    fastcgi_buffer_size $NGINX_FASTCGI_BUFFER_SIZE;
+    fastcgi_read_timeout $PHP_MAX_EXECUTION_TIME;
 }
 
 # additional config

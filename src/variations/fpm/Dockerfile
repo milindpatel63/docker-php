@@ -7,9 +7,9 @@ ARG PHP_VARIATION='fpm'
 ##########
 FROM php:${PHP_VERSION}-${PHP_VARIATION}-${BASE_OS_VERSION}
 
-ARG DEPENDENCY_PACKAGES_ALPINE='shadow'
-ARG DEPENDENCY_PACKAGES_DEBIAN='zip'
-ARG DEPENDENCY_PHP_EXTENSIONS='pcntl pdo_mysql pdo_pgsql redis zip'
+ARG DEPENDENCY_PACKAGES_ALPINE='fcgi shadow'
+ARG DEPENDENCY_PACKAGES_DEBIAN='libfcgi-bin zip'
+ARG DEPENDENCY_PHP_EXTENSIONS='opcache pcntl pdo_mysql pdo_pgsql redis zip'
 ARG REPOSITORY_BUILD_VERSION='dev'
 
 LABEL org.opencontainers.image.title="milindpatel63/php (${PHP_VARIATION})" \
@@ -42,10 +42,16 @@ ENV APP_BASE_DIR=/var/www/html \
     PHP_MAX_EXECUTION_TIME="99" \
     PHP_MAX_INPUT_TIME="-1" \
     PHP_MEMORY_LIMIT="256M" \
+    PHP_OPCACHE_ENABLE="0" \
+    PHP_OPCACHE_INTERNED_STRINGS_BUFFER="8" \
+    PHP_OPCACHE_MAX_ACCELERATED_FILES="10000" \
+    PHP_OPCACHE_MEMORY_CONSUMPTION="128" \
+    PHP_OPCACHE_REVALIDATE_FREQ="2" \
     PHP_OPEN_BASEDIR="" \
     PHP_POST_MAX_SIZE="100M" \
     PHP_SESSION_COOKIE_SECURE=Off \
-    PHP_UPLOAD_MAX_FILE_SIZE="100M"
+    PHP_UPLOAD_MAX_FILE_SIZE="100M" \
+    SHOW_WELCOME_MESSAGE=true
 
 # copy our scripts
 COPY --chmod=755 src/common/ /
@@ -56,9 +62,18 @@ RUN rm -rf /usr/local/etc/php-fpm.d/*.conf && \
     docker-php-serversideup-dep-install-debian "${DEPENDENCY_PACKAGES_DEBIAN}"  && \
     docker-php-serversideup-install-php-ext-installer && \
     \
+    # Ensure /var/www/ has the correct permissions
+    chown -R www-data:www-data /var/www && \
+    chmod -R 755 /var/www && \
+    \
     # Make composer cache directory
     mkdir -p "${COMPOSER_HOME}" && \
     chown -R www-data:www-data "${COMPOSER_HOME}" && \
+    \
+    # Ensure "php-fpm-healthcheck" is installed
+    echo "⬇️ Downloading php-fpm-healthcheck..." && \
+    curl -o /usr/local/bin/php-fpm-healthcheck https://raw.githubusercontent.com/renatomefi/php-fpm-healthcheck/v0.5.0/php-fpm-healthcheck && \
+    chmod +x /usr/local/bin/php-fpm-healthcheck && \
     \
     # Install default PHP extensions
     install-php-extensions "${DEPENDENCY_PHP_EXTENSIONS}"
@@ -69,6 +84,8 @@ COPY src/php-fpm.d/ /
 # install composer from Composer's official Docker image
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
+RUN docker-php-serversideup-set-file-permissions --owner www-data:www-data --service fpm
+
 ENTRYPOINT ["docker-php-serversideup-entrypoint"]
 
 STOPSIGNAL SIGQUIT
@@ -77,4 +94,9 @@ EXPOSE 8889
 
 WORKDIR ${APP_BASE_DIR}
 
+USER www-data
+
 CMD ["php-fpm"]
+
+HEALTHCHECK --interval=5s --timeout=3s --retries=3 \
+    CMD php-fpm-healthcheck || exit 1

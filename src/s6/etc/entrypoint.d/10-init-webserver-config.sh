@@ -3,9 +3,15 @@
 # Usage: 10-init-web-server-config.sh
 ###################################################
 # This script prepares the usage of PHP-FPM-NGINX and PHP-FPM-Apache with S6 overlay. The script
-# will execute at contianer initialization and will process templates from environment variables
+# will execute at container initialization and will process templates from environment variables
 # and enable the necessary websites.
 script_name="init-webserver-config"
+
+# Check if S6 is initialized
+if [ "$S6_INITIALIZED" != "true" ]; then
+    echo "ℹ️  [NOTICE]: S6 is not initialized. Skipping web server configuration and running custom command."
+    exit 0
+fi
 
 ##########
 # Functions
@@ -35,7 +41,7 @@ process_template() {
     fi
 
     # Get all environment variables starting with 'NGINX_', 'SSL_', `LOG_`, and 'APACHE_'
-    subst_vars=$(env | grep -E '^(NGINX_|SSL_|LOG_|APACHE_)' | cut -d= -f1 | awk '{printf "${%s},",$1}' | sed 's/,$//')
+    subst_vars=$(env | grep -E '^(PHP_|NGINX_|SSL_|LOG_|APACHE_)' | cut -d= -f1 | awk '{printf "${%s},",$1}' | sed 's/,$//')
 
     # Validate that all required variables are set
     for var_name in $(echo "$subst_vars" | tr ',' ' '); do
@@ -75,8 +81,12 @@ enable_apache_conf() {
             return 1
         fi
 
-        # Create a symbolic link
-        ln -s "$SOURCE_FILE" "$TARGET_FILE" && echo "ℹ️ NOTICE ($script_name): Enabled configuration - ${conf_name}..."
+        # Create a symbolic link if it already doesn't exist
+        if [ ! -e "$TARGET_FILE" ]; then
+          ln -s "$SOURCE_FILE" "$TARGET_FILE" && echo "ℹ️ NOTICE ($script_name): Enabled configuration '${conf_name}'..."
+        else
+          echo "ℹ️ NOTICE ($script_name): '${conf_name}' configuration already enabled, skipping..."
+        fi
     done
 }
 
@@ -92,8 +102,12 @@ enable_apache_site (){
     fi
 
     # Enable the site
-    echo "ℹ️ NOTICE ($script_name): Enabling Apache site with SSL \"$ssl_mode\"..."
-    ln -s "/etc/apache2/sites-available/ssl-$ssl_mode.conf" "$apache2_enabled_site_path/ssl-$ssl_mode.conf"
+    if [ ! -e "$apache2_enabled_site_path/ssl-$ssl_mode.conf" ]; then
+        echo "ℹ️ NOTICE ($script_name): Enabling Apache site with SSL '$ssl_mode'..."
+        ln -s "/etc/apache2/sites-available/ssl-$ssl_mode.conf" "$apache2_enabled_site_path/ssl-$ssl_mode.conf"
+    else
+          echo "ℹ️ NOTICE ($script_name): Apache site with the SSL '$ssl_mode' already enabled, Skipping..."
+    fi
 }
 
 enable_nginx_site (){
@@ -138,8 +152,7 @@ validate_ssl(){
         return 0
     fi
 
-    echo "🔐 SSL Keypair not found. Generating self-signed SSL keypair..."
-    mkdir -p /etc/ssl/private/
+    echo "🔐 SSL Keypair not found. Generating self-signed SSL keypair..."    
     openssl req -x509 -subj "/C=US/ST=Wisconsin/L=Milwaukee/O=IT/CN=*.dev.test,*.gitpod.io,*.ngrok.io,*.nip.io" -nodes -newkey rsa:2048 -keyout "$SSL_PRIVATE_KEY_FILE" -out "$SSL_CERTIFICATE_FILE" -days 365 >/dev/null 2>&1
 }
 
